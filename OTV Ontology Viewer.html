@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTV Ontology Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #f5f7fa, #e4e8f0);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .container {
+            max-width: 1600px;
+            width: 95%;
+            margin: 20px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            padding: 25px;
+            box-sizing: border-box;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            font-weight: 700;
+            font-size: 2.5rem;
+            letter-spacing: 1.5px;
+            margin: 0 0 15px 0;
+            padding: 0;
+            line-height: 1.0;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .file-selector-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .file-button {
+            padding: 8px 16px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            display: inline-block;
+            height: 36px;
+            box-sizing: border-box;
+        }
+        
+        .file-button:hover {
+            background: #219653;
+            transform: translateY(-2px);
+        }
+        
+        #file-name {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        .file-stats {
+            color: #7f8c8d;
+            font-style: italic;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            height: 36px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .view-button {
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            height: 36px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+        
+        .view-button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .view-button.active {
+            background: #e74c3c;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        #tree-container {
+            width: 100%;
+            height: 800px;
+            overflow: auto;
+            margin: 20px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fff;
+            position: relative;
+        }
+        
+        .node {
+            cursor: pointer;
+        }
+        
+        .concept-node circle {
+            fill: #fff;
+            stroke: #3498db;
+            stroke-width: 3px;
+            transition: all 0.3s ease;
+        }
+        
+        .object-node circle {
+            fill: #fff;
+            stroke: #e74c3c;
+            stroke-width: 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .object-node {
+            opacity: 0.8;
+        }
+        
+        .node text {
+            font: 12px 'Segoe UI', sans-serif;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            fill: #2c3e50;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;
+        }
+        
+        .object-node text {
+            font-size: 10px;
+            font-style: italic;
+            fill: #c0392b;
+        }
+        
+        .isa-link {
+            fill: none;
+            stroke: #3498db;
+            stroke-width: 2px;
+        }
+        
+        .instanceof-link {
+            fill: none;
+            stroke: #e74c3c;
+            stroke-width: 1.5px;
+            stroke-dasharray: 3,3;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .control-button {
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+            white-space: nowrap;
+            height: 36px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+        
+        .control-button:hover {
+            background: #2980b9;
+        }
+        
+        .search-container {
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        #search {
+            padding: 8px 12px;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #2c3e50;
+            height: 36px;
+            box-sizing: border-box;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 12px 16px;
+            background: #5d6d7e;
+            color: white;
+            border-radius: 8px;
+            pointer-events: auto;
+            font-size: 14px;
+            max-width: 300px;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            word-wrap: break-word;
+            line-height: 1.4;
+            cursor: move;
+            overflow: auto;
+        }
+        
+        .tooltip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+        }
+        
+        .tooltip-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        
+        .tooltip-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .tooltip-image {
+            max-width: 250px;
+            max-height: 150px;
+            margin: 8px auto;
+            border-radius: 4px;
+            display: block;
+        }
+        
+        .tooltip-link {
+            color: #3498db;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        
+        .tooltip-attribute {
+            margin: 0; padding: 0;
+        }
+        
+        .tooltip-attribute-name {
+            font-style: italic;
+            margin: 0; padding: 0;
+        }
+        
+        .highlighted {
+            fill: #ffeb3b !important;
+            stroke: #f57f17 !important;
+            stroke-width: 4px !important;
+        }
+
+        .loading {
+            text-align: center;
+            #padding: 40px;
+            padding: 1px;
+            #color: #7f8c8d;
+            color: #2c3e50;
+        }
+        
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .tooltip-map {
+            width: 250px;
+            height: 150px;
+            margin: 8px auto;
+            border-radius: 4px;
+            display: block;
+        }
+        
+        .generate-button {
+            padding: 8px 16px;
+            background: #9b59b6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            height: 36px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+        
+        .generate-button:hover {
+            background: #8e44ad;
+            transform: translateY(-2px);
+        }
+        
+        .generate-button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OTV Ontology Viewer</h1>
+        
+        <div class="file-selector-container">
+            <label for="rdf-file" class="file-button">
+                <input type="file" id="rdf-file" accept=".rdf,.xml" class="hidden">
+                Upload a OTV/RDF file
+            </label>
+            <div id="file-name">No file selected</div>
+            <div id="file-stats" class="file-stats">0 concepts, 0 objects</div>
+        </div>
+
+        <div id="loading" class="loading">
+            The ontoterminology to be loaded must contain OTV and OWL
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div class="controls" id="controls" style="display: none;">
+            <div class="search-container">
+                <input type="text" id="search" placeholder="Concept and object search...">
+            </div>
+            <button class="view-button active" data-view="isa">isA</button>
+            <button class="view-button" data-view="combined">isA + instanceOf</button>
+            <button class="control-button" id="zoom-in">Zoom +</button>
+            <button class="control-button" id="zoom-out">Zoom -</button>
+            <button class="control-button" id="reset-view">Reset</button>
+            <button class="control-button" id="expand-all">Expand all</button>
+            <button class="control-button" id="collapse-all">Collapse all</button>
+            <button class="control-button" id="rotate-tree">Rotate</button>
+            <button class="control-button" id="increase-spacing">Space +</button>
+            <button class="control-button" id="decrease-spacing">Space -</button>
+            <button id="generate-standalone" class="generate-button" disabled>Generate standalone version</button>
+        </div>
+        
+        <div id="tree-container" style="display: none;"></div>
+    </div>
+
+    <script>
+        let rdfData = null;
+        let currentView = 'isa';
+        let svg, root, tree, zoom, tooltip;
+        let isRotated = false;
+        let nodeSpacing = 280;
+        let currentMap = null;
+        let currentTooltipNode = null;
+        let isDraggingTooltip = false;
+        let tooltipOffsetX = 0;
+        let tooltipOffsetY = 0;
+        
+        // Configuration
+        const margin = { top: 40, right: 200, bottom: 40, left: 200 };
+        const width = 1600 - margin.right - margin.left;
+        const height = 800 - margin.top - margin.bottom;
+        let i = 0;
+        const duration = 750;
+
+        // Fonction pour lire le fichier RDF
+        function readRDFFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    resolve(e.target.result);
+                };
+                
+                reader.onerror = function() {
+                    reject(new Error("Erreur lors de la lecture du fichier"));
+                };
+                
+                reader.readAsText(file);
+            });
+        }
+
+        // Fonction pour formater le nom selon les règles spécifiées
+        function formatNodeName(id, xmlElement) {
+            // 1. Vérifier otv:shortConceptName
+            const shortConceptName = xmlElement.querySelector('otv\\:shortConceptName, shortConceptName');
+            if (shortConceptName && shortConceptName.textContent.trim() !== '') {
+                return truncateName(shortConceptName.textContent.trim());
+            }
+            
+            // 2. Vérifier rdfs:label
+            const rdfsLabel = xmlElement.querySelector('rdfs\\:label, label');
+            if (rdfsLabel && rdfsLabel.textContent.trim() !== '') {
+                return truncateName(rdfsLabel.textContent.trim());
+            }
+            
+            // 3. Utiliser la partie finale de l'URI
+            const uriParts = id.split('#');
+            const lastPart = uriParts.length > 1 ? uriParts[uriParts.length - 1] : id;
+            return truncateName(lastPart);
+        }
+
+        // Fonction pour tronquer les noms trop longs
+        function truncateName(name) {
+            if (name.length <= 35) return name;
+            
+            const firstPart = name.substring(0, 15);
+            const lastPart = name.substring(name.length - 15);
+            return `${firstPart}...${lastPart}`;
+        }
+
+        // Fonction pour parser le RDF
+        async function parseRDF(rdfContent) {
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(rdfContent, 'text/xml');
+                
+                // Vérifier s'il y a des erreurs de parsing
+                const parseError = xmlDoc.querySelector('parsererror');
+                if (parseError) {
+                    throw new Error("Le fichier RDF/XML n'est pas valide: " + parseError.textContent);
+                }
+                
+                // Extraire les concepts avec relations isA
+                const concepts = new Map();
+                const objects = new Map();
+                const isaRelations = new Map();
+                const instanceOfRelations = new Map();
+                const objectAttributes = new Map();
+                const conceptAttributes = new Map();
+                
+                // Analyser les concepts (otv:Concept)
+                const conceptElements = xmlDoc.querySelectorAll('otv\\:Concept, Concept');
+                conceptElements.forEach(concept => {
+                    const about = concept.getAttribute('rdf:about') || concept.getAttribute('about');
+                    if (about) {
+                        const id = about.replace('#', '');
+                        const name = formatNodeName(id, concept);
+                        
+                        concepts.set(id, {
+                            id: id,
+                            name: name,
+                            type: 'concept',
+                            children: new Set(),
+                            parent: null
+                        });
+                        
+                        // Extraire tous les attributs du concept
+                        const attributes = {};
+                        for (let i = 0; i < concept.children.length; i++) {
+                            const child = concept.children[i];
+                            const nodeName = child.nodeName;
+                            
+                            // Ignorer les éléments de relation
+                            if (nodeName.includes('isA') || 
+                                nodeName.includes('rdf:type') ||
+                                nodeName.includes('rdfs:label') ||
+                                nodeName.includes('otv:shortConceptName')) {
+                                continue;
+                            }
+                            
+                            // Extraire le nom de l'attribut
+                            let attrName = nodeName;
+                            if (attrName.includes(':')) {
+                                attrName = attrName.split(':')[1];
+                            }
+                            
+                            // Extraire la valeur
+                            let value = child.textContent;
+                            const resourceAttr = child.getAttribute('rdf:resource') || child.getAttribute('resource');
+                            if (resourceAttr) {
+                                //value = resourceAttr.replace('#', '');
+                                value = resourceAttr;
+                            }
+                            
+                            if (value && value.trim() !== '') {
+                                attributes[attrName] = value;
+                            }
+                        }
+                        
+                        conceptAttributes.set(id, attributes);
+                        
+                        // Relations isA
+                        const isaElements = concept.querySelectorAll('otv\\:isA, isA');
+                        isaElements.forEach(isa => {
+                            const resource = isa.getAttribute('rdf:resource') || isa.getAttribute('resource');
+                            if (resource) {
+                                const parentId = resource.replace('#', '');
+                                if (!isaRelations.has(id)) isaRelations.set(id, []);
+                                isaRelations.get(id).push(parentId);
+                            }
+                        });
+                    }
+                });
+                
+                // Analyser les objets (owl:NamedIndividual)
+                const individualElements = xmlDoc.querySelectorAll('owl\\:NamedIndividual, NamedIndividual');
+                individualElements.forEach(individual => {
+                    const about = individual.getAttribute('rdf:about') || individual.getAttribute('about');
+                    if (about) {
+                        const id = about.replace('#', '');
+                        const name = formatNodeName(id, individual);
+                        
+                        objects.set(id, {
+                            id: id,
+                            name: name,
+                            type: 'object',
+                            concept: null,
+                            attributes: {}
+                        });
+                        
+                        // Extraire tous les attributs de l'individu
+                        const attributes = {};
+                        
+                        // Extraire foaf:depiction
+                        const depictionElements = individual.querySelectorAll('foaf\\:depiction, depiction');
+                        if (depictionElements.length > 0) {
+                            attributes['depiction'] = depictionElements[0].getAttribute('rdf:resource') || 
+                                                     depictionElements[0].getAttribute('resource');
+                        }
+                        
+                        // Extraire tous les autres éléments enfants
+                        for (let i = 0; i < individual.children.length; i++) {
+                            const child = individual.children[i];
+                            const nodeName = child.nodeName;
+                            
+                            // Ignorer les éléments de relation
+                            if (nodeName.includes('rdf:type') || 
+                                nodeName.includes('foaf:depiction')) {
+                                continue;
+                            }
+                            
+                            // Extraire le nom de l'attribut
+                            let attrName = nodeName;
+                            if (attrName.includes(':')) {
+                                attrName = attrName.split(':')[1];
+                            }
+                            
+                            // Extraire la valeur
+                            let value = child.textContent;
+                            const resourceAttr = child.getAttribute('rdf:resource') || child.getAttribute('resource');
+                            if (resourceAttr) {
+                                value = resourceAttr.replace('#', '');
+                            }
+                            
+                            if (value && value.trim() !== '') {
+                                attributes[attrName] = value;
+                            }
+                        }
+                        
+                        objectAttributes.set(id, attributes);
+                        
+                        // Relations rdf:type (instanceOf)
+                        const typeElements = individual.querySelectorAll('rdf\\:type, type');
+                        typeElements.forEach(type => {
+                            const resource = type.getAttribute('rdf:resource') || type.getAttribute('resource');
+                            if (resource) {
+                                const conceptId = resource.replace('#', '');
+                                // Vérifier que le type est bien un concept existant
+                                if (concepts.has(conceptId)) {
+                                    objects.get(id).concept = conceptId;
+                                    if (!instanceOfRelations.has(conceptId)) instanceOfRelations.set(conceptId, []);
+                                    instanceOfRelations.get(conceptId).push(id);
+                                }
+                            }
+                        });
+                    }
+                });
+                
+                return {
+                    concepts,
+                    objects,
+                    isaRelations,
+                    instanceOfRelations,
+                    objectAttributes,
+                    conceptAttributes
+                };
+                
+            } catch (error) {
+                console.error('Erreur lors du parsing RDF:', error);
+                throw error;
+            }
+        }
+
+        function buildHierarchy(concepts, isaRelations, objects, instanceOfRelations, viewType) {
+            const hierarchy = new Map();
+            const roots = [];
+            
+            // Construire la hiérarchie des concepts
+            concepts.forEach((concept, id) => {
+                hierarchy.set(id, {
+                    ...concept,
+                    children: []
+                });
+            });
+            
+            // Établir les relations parent-enfant pour isA
+            isaRelations.forEach((parents, childId) => {
+                parents.forEach(parentId => {
+                    if (hierarchy.has(parentId) && hierarchy.has(childId)) {
+                        hierarchy.get(parentId).children.push(hierarchy.get(childId));
+                        hierarchy.get(childId).parent = parentId;
+                    }
+                });
+            });
+            
+            // Ajouter les objets selon la vue
+            if (viewType === 'combined') {
+                instanceOfRelations.forEach((objectIds, conceptId) => {
+                    if (hierarchy.has(conceptId)) {
+                        objectIds.forEach(objectId => {
+                            if (objects.has(objectId)) {
+                                const objectNode = {
+                                    ...objects.get(objectId),
+                                    children: []
+                                };
+                                hierarchy.get(conceptId).children.push(objectNode);
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Trouver les racines (concepts sans parent)
+            hierarchy.forEach((node, id) => {
+                if (!node.parent) {
+                    roots.push(node);
+                }
+            });
+            
+            return roots.length === 1 ? roots[0] : {
+                id: 'root',
+                name: 'Ontology',
+                type: 'concept',
+                children: roots
+            };
+        }
+
+        function initializeVisualization() {
+            // Nettoyer le conteneur d'arbre
+            d3.select("#tree-container").selectAll("*").remove();
+            
+            // Créer le SVG
+            svg = d3.select("#tree-container").append("svg")
+                .attr("width", width + margin.right + margin.left)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            
+            // Initialiser l'arbre
+            tree = d3.tree().size([height, width]);
+            
+            // Initialiser le zoom
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 3])
+                .on("zoom", function(event) {
+                    svg.attr("transform", event.transform);
+                });
+            
+            d3.select("#tree-container svg").call(zoom);
+            
+            // Créer l'infobulle
+            tooltip = d3.select("#tree-container").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0)
+                .style("display", "none");
+                
+            tooltip.append("div")
+                .attr("class", "tooltip-header")
+                .html('<span>Node Details</span><button class="tooltip-close">&times;</button>');
+                
+            tooltip.append("div")
+                .attr("class", "tooltip-content");
+                
+            tooltip.select(".tooltip-close")
+                .on("click", function() {
+                    hideTooltip();
+                });
+                
+            tooltip.call(d3.drag()
+                .on("start", function(event) {
+                    isDraggingTooltip = true;
+                    tooltip.style("cursor", "grabbing");
+                    tooltipOffsetX = event.x - parseInt(tooltip.style("left"));
+                    tooltipOffsetY = event.y - parseInt(tooltip.style("top"));
+                })
+                .on("drag", function(event) {
+                    tooltip.style("left", (event.x - tooltipOffsetX) + "px")
+                           .style("top", (event.y - tooltipOffsetY) + "px");
+                })
+                .on("end", function() {
+                    isDraggingTooltip = false;
+                    tooltip.style("cursor", "move");
+                }));
+        }
+
+        function updateVisualization(rootData) {
+            if (!svg) {
+                initializeVisualization();
+            } else {
+                svg.selectAll("*").remove();
+            }
+            
+            root = d3.hierarchy(rootData, d => d.children);
+            
+            if (isRotated) {
+                root.x0 = width / 2;
+                root.y0 = 0;
+                tree.size([width, height]);
+            } else {
+                root.x0 = height / 2;
+                root.y0 = 0;
+                tree.size([height, width]);
+            }
+            
+            // Réduire initialement selon la vue
+            if (currentView === 'isa') {
+                root.children.forEach(collapse);
+            }
+            
+            function collapse(d) {
+                if (d.children && d.data.type === 'concept') {
+                    d._children = d.children;
+                    d._children.forEach(collapse);
+                    d.children = null;
+                }
+            }
+            
+            update(root);
+        }
+
+        function update(source) {
+            const treeData = tree(root);
+            
+            const nodes = treeData.descendants();
+            const links = treeData.descendants().slice(1);
+            
+            if (isRotated) {
+                nodes.forEach(d => { 
+                    const temp = d.x;
+                    d.x = d.y;
+                    d.y = temp;
+                });
+                
+                nodes.forEach(d => { d.x = d.depth * nodeSpacing; });
+            } else {
+                nodes.forEach(d => { d.y = d.depth * nodeSpacing; });
+            }
+            
+            // Mise à jour des nœuds
+            const node = svg.selectAll("g.node")
+                .data(nodes, d => d.id || (d.id = ++i));
+                
+            const nodeEnter = node.enter().append("g")
+                .attr("class", d => `node ${d.data.type}-node`)
+                .attr("transform", d => `translate(${source.y0},${source.x0})`)
+                .on("click", click)
+                .on("mouseover", function(event, d) {
+                    if (!isDraggingTooltip) {
+                        showTooltip(event, d);
+                    }
+                });
+                
+            nodeEnter.append("circle")
+                .attr("r", 1e-6);
+                
+            nodeEnter.append("text")
+                .attr("dy", "0.31em")
+                .attr("x", d => {
+                    if (isRotated) {
+                        return 0;
+                    } else {
+                        return d.children || d._children ? -18 : 18;
+                    }
+                })
+                .attr("text-anchor", d => {
+                    if (isRotated) {
+                        return "start";
+                    } else {
+                        return d.children || d._children ? "end" : "start";
+                    }
+                })
+                .text(d => d.data.name)
+                .style("font-size", d => d.data.type === 'object' ? "10px" : (d.depth === 0 ? "16px" : "13px"));
+                
+            const nodeUpdate = nodeEnter.merge(node);
+            
+            nodeUpdate.transition()
+                .duration(duration)
+                .attr("transform", d => `translate(${d.y},${d.x})`);
+                
+            nodeUpdate.select("circle")
+                .attr("r", d => d.data.type === 'object' ? 6 : (d.depth === 0 ? 14 : 12));
+                
+            const nodeExit = node.exit().transition()
+                .duration(duration)
+                .attr("transform", d => `translate(${source.y},${source.x})`)
+                .remove();
+                
+            nodeExit.select("circle").attr("r", 1e-6);
+            nodeExit.select("text").style("fill-opacity", 1e-6);
+            
+            // Mise à jour des liens
+            const link = svg.selectAll("path.link")
+                .data(links, d => d.id);
+                
+            const linkEnter = link.enter().insert("path", "g")
+                .attr("class", d => {
+                    const isInstanceOf = d.data.type === 'object';
+                    return isInstanceOf ? "link instanceof-link" : "link isa-link";
+                })
+                .attr("d", d => {
+                    const o = { x: source.x0, y: source.y0 };
+                    return diagonal(o, o);
+                });
+                
+            const linkUpdate = linkEnter.merge(link);
+            
+            linkUpdate.transition()
+                .duration(duration)
+                .attr("d", d => diagonal(d, d.parent));
+                
+            link.exit().transition()
+                .duration(duration)
+                .attr("d", d => {
+                    const o = { x: source.x, y: source.y };
+                    return diagonal(o, o);
+                })
+                .remove();
+            
+            nodes.forEach(d => {
+                d.x0 = d.x;
+                d.y0 = d.y;
+            });
+            
+            function diagonal(s, d) {
+                if (isRotated) {
+                    return `M ${s.y} ${s.x}
+                            C ${s.y} ${(s.x + d.x) / 2},
+                              ${d.y} ${(s.x + d.x) / 2},
+                              ${d.y} ${d.x}`;
+                } else {
+                    return `M ${s.y} ${s.x}
+                            C ${(s.y + d.y) / 2} ${s.x},
+                              ${(s.y + d.y) / 2} ${d.x},
+                              ${d.y} ${d.x}`;
+                }
+            }
+            
+            function click(event, d) {
+                if (d.data.type === 'object') return;
+                
+                if (d.children) {
+                    d._children = d.children;
+                    d.children = null;
+                } else {
+                    d.children = d._children;
+                    d._children = null;
+                }
+                update(d);
+            }
+        }
+
+        function showTooltip(event, d) {
+            if (currentTooltipNode === d.data.id) return;
+            
+            currentTooltipNode = d.data.id;
+            
+            if (currentMap) {
+                currentMap.remove();
+                currentMap = null;
+            }
+            
+            let tooltipContent = `<div style="margin-bottom: 4px;"><strong>${d.data.name}</strong></div>`;
+            tooltipContent += `<div style="margin-bottom: 4px;"><u>Type</u>: ${d.data.type === 'object' ? 'Object' : 'Concept'}</div>`;
+            tooltipContent += `<div style="margin-bottom: 4px; word-break: break-all;"><u>ID</u>: ${d.data.id}</div>`;
+            
+            if (d.data.type === 'object' && d.data.concept) {
+                tooltipContent += `<div style="margin-bottom: 4px;"><u>Instance of</u>: ${d.data.concept}</div>`;
+            }
+            
+            let attributes = null;
+            if (d.data.type === 'object') {
+                attributes = rdfData.objectAttributes.get(d.data.id);
+                
+                if (attributes && attributes.depiction) {
+                    tooltipContent += `<img src="${attributes.depiction}" class="tooltip-image" alt="Depiction">`;
+                }
+            } else {
+                attributes = rdfData.conceptAttributes.get(d.data.id);
+            }
+            
+            let hasCoordinates = false;
+            let latitude, longitude;
+            
+            if (attributes) {
+                for (const [key, value] of Object.entries(attributes)) {
+                    const lowerKey = key.toLowerCase();
+                    if (lowerKey.includes('lat') || lowerKey.includes('latitude')) {
+                        latitude = parseFloat(value);
+                    }
+                    if (lowerKey.includes('long') || lowerKey.includes('longitude') || lowerKey.includes('lon')) {
+                        longitude = parseFloat(value);
+                    }
+                }
+                
+                if (latitude !== undefined && longitude !== undefined && !isNaN(latitude) && !isNaN(longitude)) {
+                    hasCoordinates = true;
+                }
+            }
+            
+            if (attributes && Object.keys(attributes).length > 0) {
+                tooltipContent += `<div><u>Attributes:</u></div>`;
+                for (const [key, value] of Object.entries(attributes)) {
+                    if (key === 'depiction') continue;
+                    
+                    if (value && (value.startsWith('http://') || value.startsWith('https://'))) {
+                        tooltipContent += `<div class="tooltip-attribute" style="margin: 0; padding: 0;"><span class="tooltip-attribute-name">${key}:</span> <a href="${value}" target="_blank" class="tooltip-link">${value}</a></div>`;
+                    } else if (value) {
+                        tooltipContent += `<div class="tooltip-attribute"><span class="tooltip-attribute-name">${key}:</span> ${value}</div>`;
+                    }
+                }
+            }
+            
+            if (hasCoordinates) {
+                tooltipContent += `<div><u>Localisation:</u></div>`;
+                tooltipContent += `<div id="tooltip-map-container" class="tooltip-map"></div>`;
+            }
+            
+            d3.select(".tooltip-content").html(tooltipContent);
+            
+            const containerRect = document.getElementById('tree-container').getBoundingClientRect();
+            const x = Math.min(Math.max(event.clientX - containerRect.left, 10), containerRect.width - 310);
+            const y = Math.min(Math.max(event.clientY - containerRect.top, 10), containerRect.height - 200);
+            
+            tooltip.style("left", x + "px")
+                   .style("top", y + "px")
+                   .style("display", "block")
+                   .transition()
+                   .duration(200)
+                   .style("opacity", 0.95);
+                   
+            tooltip.selectAll('.tooltip-link')
+                .on('click', function(e) {
+                    e.stopPropagation();
+                });
+            
+            if (hasCoordinates) {
+                setTimeout(() => {
+                    const mapContainer = document.getElementById('tooltip-map-container');
+                    if (mapContainer) {
+                        currentMap = L.map('tooltip-map-container').setView([latitude, longitude], 13);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; OpenStreetMap contributors'
+                        }).addTo(currentMap);
+                        L.marker([latitude, longitude]).addTo(currentMap);
+                    }
+                }, 100);
+            }
+        }
+
+        function hideTooltip() {
+            currentTooltipNode = null;
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", 0)
+                .on("end", function() {
+                    tooltip.style("display", "none");
+                });
+                
+            if (currentMap) {
+                currentMap.remove();
+                currentMap = null;
+            }
+        }
+
+        function searchNode() {
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            
+            if (!searchTerm) {
+                svg.selectAll('circle.highlighted').classed('highlighted', false);
+                return;
+            }
+            
+            svg.selectAll('g.node').each(function(d) {
+                const node = d3.select(this);
+                const name = d.data.name.toLowerCase();
+                const id = d.data.id.toLowerCase();
+                
+                if (name.includes(searchTerm) || id.includes(searchTerm)) {
+                    node.select('circle').classed('highlighted', true);
+                } else {
+                    node.select('circle').classed('highlighted', false);
+                }
+            });
+        }
+
+        function updateStats() {
+            const conceptCount = rdfData.concepts.size;
+            const objectCount = rdfData.objects.size;
+            document.getElementById('file-stats').textContent = `${conceptCount} concepts, ${objectCount} objects`;
+        }
+
+        function generateStandalonePage() {
+            if (!rdfData) return;
+            
+            const serializableData = {
+                concepts: Array.from(rdfData.concepts.entries()),
+                objects: Array.from(rdfData.objects.entries()),
+                isaRelations: Array.from(rdfData.isaRelations.entries()),
+                instanceOfRelations: Array.from(rdfData.instanceOfRelations.entries()),
+                objectAttributes: Array.from(rdfData.objectAttributes.entries()),
+                conceptAttributes: Array.from(rdfData.conceptAttributes.entries())
+            };
+            
+            const standalonePageContent = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${currentFileName} Ontology</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"><\/script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+    <style>
+        ${document.querySelector('style').innerHTML}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>${currentFileName} Ontology</h1>
+        
+        <div class="file-selector-container">
+            <div class="file-stats">${rdfData.concepts.size} concepts, ${rdfData.objects.size} objects (preloaded)</div>
+        </div>
+
+        <div class="controls" id="controls">
+            <div class="search-container">
+                <input type="text" id="search" placeholder="Concept and object search...">
+            </div>
+            <button class="view-button active" data-view="isa">isA</button>
+            <button class="view-button" data-view="combined">isA + instanceOf</button>
+            <button class="control-button" id="zoom-in">Zoom +</button>
+            <button class="control-button" id="zoom-out">Zoom -</button>
+            <button class="control-button" id="reset-view">Reset</button>
+            <button class="control-button" id="expand-all">Expand all</button>
+            <button class="control-button" id="collapse-all">Collapse all</button>
+            <button class="control-button" id="rotate-tree">Rotate</button>
+            <button class="control-button" id="increase-spacing">Space +</button>
+            <button class="control-button" id="decrease-spacing">Space -</button>
+        </div>
+        
+        <div id="tree-container"></div>
+    </div>
+
+    <script>
+        const preloadedRdfData = ${JSON.stringify(serializableData)};
+        
+        function restoreMaps(data) {
+            return {
+                concepts: new Map(data.concepts),
+                objects: new Map(data.objects),
+                isaRelations: new Map(data.isaRelations),
+                instanceOfRelations: new Map(data.instanceOfRelations),
+                objectAttributes: new Map(data.objectAttributes),
+                conceptAttributes: new Map(data.conceptAttributes)
+            };
+        }
+        
+        const rdfData = restoreMaps(preloadedRdfData);
+        let currentView = 'isa';
+        let svg, root, tree, zoom, tooltip;
+        let isRotated = false;
+        let nodeSpacing = 280;
+        let currentMap = null;
+        let currentTooltipNode = null;
+        let isDraggingTooltip = false;
+        let tooltipOffsetX = 0;
+        let tooltipOffsetY = 0;
+        let currentFileName = ""; //récupère le nom du fichier téléchargé
+        
+        const margin = { top: 40, right: 200, bottom: 40, left: 200 };
+        const width = 1600 - margin.right - margin.left;
+        const height = 800 - margin.top - margin.bottom;
+        let i = 0;
+        const duration = 750;
+
+        function truncateName(name) {
+            if (name.length <= 35) return name;
+            const firstPart = name.substring(0, 15);
+            const lastPart = name.substring(name.length - 15);
+            return \`\${firstPart}...\${lastPart}\`;
+        }
+
+        function buildHierarchy(concepts, isaRelations, objects, instanceOfRelations, viewType) {
+            const hierarchy = new Map();
+            const roots = [];
+            
+            concepts.forEach((concept, id) => {
+                hierarchy.set(id, {
+                    ...concept,
+                    children: []
+                });
+            });
+            
+            isaRelations.forEach((parents, childId) => {
+                parents.forEach(parentId => {
+                    if (hierarchy.has(parentId) && hierarchy.has(childId)) {
+                        hierarchy.get(parentId).children.push(hierarchy.get(childId));
+                        hierarchy.get(childId).parent = parentId;
+                    }
+                });
+            });
+            
+            if (viewType === 'combined') {
+                instanceOfRelations.forEach((objectIds, conceptId) => {
+                    if (hierarchy.has(conceptId)) {
+                        objectIds.forEach(objectId => {
+                            if (objects.has(objectId)) {
+                                const objectNode = {
+                                    ...objects.get(objectId),
+                                    children: []
+                                };
+                                hierarchy.get(conceptId).children.push(objectNode);
+                            }
+                        });
+                    }
+                });
+            }
+            
+            hierarchy.forEach((node, id) => {
+                if (!node.parent) {
+                    roots.push(node);
+                }
+            });
+            
+            return roots.length === 1 ? roots[0] : {
+                id: 'root',
+                name: 'Ontology',
+                type: 'concept',
+                children: roots
+            };
+        }
+
+        function initializeVisualization() {
+            d3.select("#tree-container").selectAll("*").remove();
+            
+            svg = d3.select("#tree-container").append("svg")
+                .attr("width", width + margin.right + margin.left)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            
+            tree = d3.tree().size([height, width]);
+            
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 3])
+                .on("zoom", function(event) {
+                    svg.attr("transform", event.transform);
+                });
+            
+            d3.select("#tree-container svg").call(zoom);
+            
+            tooltip = d3.select("#tree-container").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0)
+                .style("display", "none");
+                
+            tooltip.append("div")
+                .attr("class", "tooltip-header")
+                .html('<span>Node Details</span><button class="tooltip-close">&times;</button>');
+                
+            tooltip.append("div")
+                .attr("class", "tooltip-content");
+                
+            tooltip.select(".tooltip-close")
+                .on("click", function() {
+                    hideTooltip();
+                });
+                
+            tooltip.call(d3.drag()
+                .on("start", function(event) {
+                    isDraggingTooltip = true;
+                    tooltip.style("cursor", "grabbing");
+                    tooltipOffsetX = event.x - parseInt(tooltip.style("left"));
+                    tooltipOffsetY = event.y - parseInt(tooltip.style("top"));
+                })
+                .on("drag", function(event) {
+                    tooltip.style("left", (event.x - tooltipOffsetX) + "px")
+                           .style("top", (event.y - tooltipOffsetY) + "px");
+                })
+                .on("end", function() {
+                    isDraggingTooltip = false;
+                    tooltip.style("cursor", "move");
+                }));
+        }
+
+        function updateVisualization(rootData) {
+            if (!svg) {
+                initializeVisualization();
+            } else {
+                svg.selectAll("*").remove();
+            }
+            
+            root = d3.hierarchy(rootData, d => d.children);
+            
+            if (isRotated) {
+                root.x0 = width / 2;
+                root.y0 = 0;
+                tree.size([width, height]);
+            } else {
+                root.x0 = height / 2;
+                root.y0 = 0;
+                tree.size([height, width]);
+            }
+            
+            if (currentView === 'isa') {
+                root.children.forEach(collapse);
+            }
+            
+            function collapse(d) {
+                if (d.children && d.data.type === 'concept') {
+                    d._children = d.children;
+                    d._children.forEach(collapse);
+                    d.children = null;
+                }
+            }
+            
+            update(root);
+        }
+
+        function update(source) {
+            const treeData = tree(root);
+            
+            const nodes = treeData.descendants();
+            const links = treeData.descendants().slice(1);
+            
+            if (isRotated) {
+                nodes.forEach(d => { 
+                    const temp = d.x;
+                    d.x = d.y;
+                    d.y = temp;
+                });
+                
+                nodes.forEach(d => { d.x = d.depth * nodeSpacing; });
+            } else {
+                nodes.forEach(d => { d.y = d.depth * nodeSpacing; });
+            }
+            
+            const node = svg.selectAll("g.node")
+                .data(nodes, d => d.id || (d.id = ++i));
+                
+            const nodeEnter = node.enter().append("g")
+                .attr("class", d => \`node \${d.data.type}-node\`)
+                .attr("transform", d => \`translate(\${source.y0},\${source.x0})\`)
+                .on("click", click)
+                .on("mouseover", function(event, d) {
+                    if (!isDraggingTooltip) {
+                        showTooltip(event, d);
+                    }
+                });
+                
+            nodeEnter.append("circle")
+                .attr("r", 1e-6);
+                
+            nodeEnter.append("text")
+                .attr("dy", "0.31em")
+                .attr("x", d => {
+                    if (isRotated) {
+                        return 0;
+                    } else {
+                        return d.children || d._children ? -18 : 18;
+                    }
+                })
+                .attr("text-anchor", d => {
+                    if (isRotated) {
+                        return "start";
+                    } else {
+                        return d.children || d._children ? "end" : "start";
+                    }
+                })
+                .text(d => d.data.name)
+                .style("font-size", d => d.data.type === 'object' ? "10px" : (d.depth === 0 ? "16px" : "13px"));
+                
+            const nodeUpdate = nodeEnter.merge(node);
+            
+            nodeUpdate.transition()
+                .duration(duration)
+                .attr("transform", d => \`translate(\${d.y},\${d.x})\`);
+                
+            nodeUpdate.select("circle")
+                .attr("r", d => d.data.type === 'object' ? 6 : (d.depth === 0 ? 14 : 12));
+                
+            const nodeExit = node.exit().transition()
+                .duration(duration)
+                .attr("transform", d => \`translate(\${source.y},\${source.x})\`)
+                .remove();
+                
+            nodeExit.select("circle").attr("r", 1e-6);
+            nodeExit.select("text").style("fill-opacity", 1e-6);
+            
+            const link = svg.selectAll("path.link")
+                .data(links, d => d.id);
+                
+            const linkEnter = link.enter().insert("path", "g")
+                .attr("class", d => {
+                    const isInstanceOf = d.data.type === 'object';
+                    return isInstanceOf ? "link instanceof-link" : "link isa-link";
+                })
+                .attr("d", d => {
+                    const o = { x: source.x0, y: source.y0 };
+                    return diagonal(o, o);
+                });
+                
+            const linkUpdate = linkEnter.merge(link);
+            
+            linkUpdate.transition()
+                .duration(duration)
+                .attr("d", d => diagonal(d, d.parent));
+                
+            link.exit().transition()
+                .duration(duration)
+                .attr("d", d => {
+                    const o = { x: source.x, y: source.y };
+                    return diagonal(o, o);
+                })
+                .remove();
+            
+            nodes.forEach(d => {
+                d.x0 = d.x;
+                d.y0 = d.y;
+            });
+            
+            function diagonal(s, d) {
+                if (isRotated) {
+                    return \`M \${s.y} \${s.x}
+                            C \${s.y} \${(s.x + d.x) / 2},
+                              \${d.y} \${(s.x + d.x) / 2},
+                              \${d.y} \${d.x}\`;
+                } else {
+                    return \`M \${s.y} \${s.x}
+                            C \${(s.y + d.y) / 2} \${s.x},
+                              \${(s.y + d.y) / 2} \${d.x},
+                              \${d.y} \${d.x}\`;
+                }
+            }
+            
+            function click(event, d) {
+                if (d.data.type === 'object') return;
+                
+                if (d.children) {
+                    d._children = d.children;
+                    d.children = null;
+                } else {
+                    d.children = d._children;
+                    d._children = null;
+                }
+                update(d);
+            }
+        }
+
+        function showTooltip(event, d) {
+            if (currentTooltipNode === d.data.id) return;
+            
+            currentTooltipNode = d.data.id;
+            
+            if (currentMap) {
+                currentMap.remove();
+                currentMap = null;
+            }
+            
+            let tooltipContent = \`<div style="margin-bottom: 4px;"><strong>\${d.data.name}</strong></div>\`;
+            tooltipContent += \`<div style="margin-bottom: 4px;"><u>Type</u>: \${d.data.type === 'object' ? 'Object' : 'Concept'}</div>\`;
+            tooltipContent += \`<div style="margin-bottom: 4px; word-break: break-all;"><u>ID</u>: \${d.data.id}</div>\`;
+            
+            if (d.data.type === 'object' && d.data.concept) {
+                tooltipContent += \`<div style="margin-bottom: 4px;"><u>Instance of</u>: \${d.data.concept}</div>\`;
+            }
+            
+            let attributes = null;
+            if (d.data.type === 'object') {
+                attributes = rdfData.objectAttributes.get(d.data.id);
+                
+                if (attributes && attributes.depiction) {
+                    tooltipContent += \`<img src="\${attributes.depiction}" class="tooltip-image" alt="Depiction">\`;
+                }
+            } else {
+                attributes = rdfData.conceptAttributes.get(d.data.id);
+            }
+            
+            let hasCoordinates = false;
+            let latitude, longitude;
+            
+            if (attributes) {
+                for (const [key, value] of Object.entries(attributes)) {
+                    const lowerKey = key.toLowerCase();
+                    if (lowerKey.includes('lat') || lowerKey.includes('latitude')) {
+                        latitude = parseFloat(value);
+                    }
+                    if (lowerKey.includes('long') || lowerKey.includes('longitude') || lowerKey.includes('lon')) {
+                        longitude = parseFloat(value);
+                    }
+                }
+                
+                if (latitude !== undefined && longitude !== undefined && !isNaN(latitude) && !isNaN(longitude)) {
+                    hasCoordinates = true;
+                }
+            }
+            
+            if (attributes && Object.keys(attributes).length > 0) {
+                tooltipContent += \`<div><u>Attributes:</u></div>\`;
+                for (const [key, value] of Object.entries(attributes)) {
+                    if (key === 'depiction') continue;
+                    
+                    if (value && (value.startsWith('http://') || value.startsWith('https://'))) {
+                        tooltipContent += \`<div class="tooltip-attribute" style="margin: 0; padding: 0;"><span class="tooltip-attribute-name">\${key}:</span> <a href="\${value}" target="_blank" class="tooltip-link">\${value}</a></div>\`;
+                    } else if (value) {
+                        tooltipContent += \`<div class="tooltip-attribute"><span class="tooltip-attribute-name">\${key}:</span> \${value}</div>\`;
+                    }
+                }
+            }
+            
+            if (hasCoordinates) {
+                tooltipContent += \`<div><u>Localisation:</u></div>\`;
+                tooltipContent += \`<div id="tooltip-map-container" class="tooltip-map"></div>\`;
+            }
+            
+            d3.select(".tooltip-content").html(tooltipContent);
+            
+            const containerRect = document.getElementById('tree-container').getBoundingClientRect();
+            const x = Math.min(Math.max(event.clientX - containerRect.left, 10), containerRect.width - 310);
+            const y = Math.min(Math.max(event.clientY - containerRect.top, 10), containerRect.height - 200);
+            
+            tooltip.style("left", x + "px")
+                   .style("top", y + "px")
+                   .style("display", "block")
+                   .transition()
+                   .duration(200)
+                   .style("opacity", 0.95);
+                   
+            tooltip.selectAll('.tooltip-link')
+                .on('click', function(e) {
+                    e.stopPropagation();
+                });
+            
+            if (hasCoordinates) {
+                setTimeout(() => {
+                    const mapContainer = document.getElementById('tooltip-map-container');
+                    if (mapContainer) {
+                        currentMap = L.map('tooltip-map-container').setView([latitude, longitude], 13);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; OpenStreetMap contributors'
+                        }).addTo(currentMap);
+                        L.marker([latitude, longitude]).addTo(currentMap);
+                    }
+                }, 100);
+            }
+        }
+
+        function hideTooltip() {
+            currentTooltipNode = null;
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", 0)
+                .on("end", function() {
+                    tooltip.style("display", "none");
+                });
+                
+            if (currentMap) {
+                currentMap.remove();
+                currentMap = null;
+            }
+        }
+
+        function searchNode() {
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            
+            if (!searchTerm) {
+                svg.selectAll('circle.highlighted').classed('highlighted', false);
+                return;
+            }
+            
+            svg.selectAll('g.node').each(function(d) {
+                const node = d3.select(this);
+                const name = d.data.name.toLowerCase();
+                const id = d.data.id.toLowerCase();
+                
+                if (name.includes(searchTerm) || id.includes(searchTerm)) {
+                    node.select('circle').classed('highlighted', true);
+                } else {
+                    node.select('circle').classed('highlighted', false);
+                }
+            });
+        }
+
+        // Initialisation de la page autonome
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeVisualization();
+            
+            const hierarchy = buildHierarchy(
+                rdfData.concepts, 
+                rdfData.isaRelations, 
+                rdfData.objects, 
+                rdfData.instanceOfRelations, 
+                currentView
+            );
+            
+            updateVisualization(hierarchy);
+            
+            document.querySelectorAll('.view-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    document.querySelectorAll('.view-button').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentView = this.dataset.view;
+                    
+                    const hierarchy = buildHierarchy(
+                        rdfData.concepts, 
+                        rdfData.isaRelations, 
+                        rdfData.objects, 
+                        rdfData.instanceOfRelations, 
+                        currentView
+                    );
+                    
+                    updateVisualization(hierarchy);
+                });
+            });
+            
+            document.getElementById('zoom-in').addEventListener('click', function() {
+                d3.select("#tree-container svg").transition().call(zoom.scaleBy, 1.3);
+            });
+            
+            document.getElementById('zoom-out').addEventListener('click', function() {
+                d3.select("#tree-container svg").transition().call(zoom.scaleBy, 0.7);
+            });
+            
+            document.getElementById('reset-view').addEventListener('click', function() {
+                d3.select("#tree-container svg").transition().call(zoom.transform, d3.zoomIdentity);
+            });
+            
+            document.getElementById('expand-all').addEventListener('click', function() {
+                if (!root) return;
+                
+                root.each(d => {
+                    if (d._children && d.data.type === 'concept') {
+                        d.children = d._children;
+                        d._children = null;
+                    }
+                });
+                
+                update(root);
+            });
+            
+            document.getElementById('collapse-all').addEventListener('click', function() {
+                if (!root) return;
+                
+                root.each(d => {
+                    if (d.children && d.data.type === 'concept') {
+                        d._children = d.children;
+                        d.children = null;
+                    }
+                });
+                
+                update(root);
+            });
+            
+            document.getElementById('rotate-tree').addEventListener('click', function() {
+                if (!root) return;
+                
+                isRotated = !isRotated;
+                update(root);
+            });
+            
+            document.getElementById('increase-spacing').addEventListener('click', function() {
+                if (!root) return;
+                
+                nodeSpacing += 40;
+                update(root);
+            });
+            
+            document.getElementById('decrease-spacing').addEventListener('click', function() {
+                if (!root) return;
+                
+                nodeSpacing = Math.max(80, nodeSpacing - 40);
+                update(root);
+            });
+            
+            document.getElementById('search').addEventListener('input', searchNode);
+            
+            document.addEventListener('click', function(event) {
+                if (!tooltip.node().contains(event.target) && !isDraggingTooltip) {
+                    hideTooltip();
+                }
+            });
+        });
+    <\/script>
+</body>
+</html>`;
+            
+            const blob = new Blob([standalonePageContent], {type: 'text/html'});
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'otv_standalone.html';
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Gestionnaire pour le bouton de fichier
+            document.getElementById('rdf-file').addEventListener('change', async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                document.getElementById('file-name').textContent = file.name;
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                currentFileName = file.name.replace(/\.[^/.]+$/, ""); // <-- Enlève l'extension 
+                
+                try {
+                    const content = await readRDFFile(file);
+                    rdfData = await parseRDF(content);
+                    
+                    updateStats();
+                    document.getElementById('generate-standalone').disabled = false;
+                    
+                    const hierarchy = buildHierarchy(
+                        rdfData.concepts, 
+                        rdfData.isaRelations, 
+                        rdfData.objects, 
+                        rdfData.instanceOfRelations, 
+                        currentView
+                    );
+                    
+                    initializeVisualization();
+                    updateVisualization(hierarchy);
+                    
+                    document.getElementById('controls').style.display = 'flex';
+                    document.getElementById('tree-container').style.display = 'block';
+                    document.getElementById('loading').style.display = 'none';
+                    
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    document.getElementById('error').textContent = error.message;
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('loading').style.display = 'none';
+                }
+            });
+            
+            document.getElementById('generate-standalone').addEventListener('click', generateStandalonePage);
+            
+            document.querySelectorAll('.view-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    if (!rdfData) return;
+                    
+                    document.querySelectorAll('.view-button').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentView = this.dataset.view;
+                    
+                    const hierarchy = buildHierarchy(
+                        rdfData.concepts, 
+                        rdfData.isaRelations, 
+                        rdfData.objects, 
+                        rdfData.instanceOfRelations, 
+                        currentView
+                    );
+                    
+                    updateVisualization(hierarchy);
+                });
+            });
+            
+            document.getElementById('zoom-in').addEventListener('click', function() {
+                d3.select("#tree-container svg").transition().call(zoom.scaleBy, 1.3);
+            });
+            
+            document.getElementById('zoom-out').addEventListener('click', function() {
+                d3.select("#tree-container svg").transition().call(zoom.scaleBy, 0.7);
+            });
+            
+            document.getElementById('reset-view').addEventListener('click', function() {
+                d3.select("#tree-container svg").transition().call(zoom.transform, d3.zoomIdentity);
+            });
+            
+            document.getElementById('expand-all').addEventListener('click', function() {
+                if (!root) return;
+                
+                root.each(d => {
+                    if (d._children && d.data.type === 'concept') {
+                        d.children = d._children;
+                        d._children = null;
+                    }
+                });
+                
+                update(root);
+            });
+            
+            document.getElementById('collapse-all').addEventListener('click', function() {
+                if (!root) return;
+                
+                root.each(d => {
+                    if (d.children && d.data.type === 'concept') {
+                        d._children = d.children;
+                        d.children = null;
+                    }
+                });
+                
+                update(root);
+            });
+            
+            document.getElementById('rotate-tree').addEventListener('click', function() {
+                if (!root) return;
+                
+                isRotated = !isRotated;
+                update(root);
+            });
+            
+            document.getElementById('increase-spacing').addEventListener('click', function() {
+                if (!root) return;
+                
+                nodeSpacing += 40;
+                update(root);
+            });
+            
+            document.getElementById('decrease-spacing').addEventListener('click', function() {
+                if (!root) return;
+                
+                nodeSpacing = Math.max(80, nodeSpacing - 40);
+                update(root);
+            });
+            
+            document.getElementById('search').addEventListener('input', searchNode);
+            
+            document.addEventListener('click', function(event) {
+                if (!tooltip.node().contains(event.target) && !isDraggingTooltip) {
+                    hideTooltip();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
